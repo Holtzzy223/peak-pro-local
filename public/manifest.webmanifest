@@ -1,0 +1,18 @@
+{
+  "name": "Peak Local",
+  "short_name": "Peak Local",
+  "description": "Local heat profiles and colors for Peak Pro — no account required.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0a0a0f",
+  "theme_color": "#1a6bff",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
