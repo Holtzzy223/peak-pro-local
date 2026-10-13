@@ -32,7 +32,7 @@ export function normalizeColorSchema(raw: unknown): LampColorSchema {
   const param: LampParam = isRecord(lamp.param) ? { ...lamp.param } : {}
   const colors = colorsFromSchema(raw)
   param.color = colors
-  param.colorLen = colors.length
+  if (typeof param.colorLen !== 'number') param.colorLen = colors.length
   return {
     ...raw,
     lamp: {
@@ -43,12 +43,16 @@ export function normalizeColorSchema(raw: unknown): LampColorSchema {
   }
 }
 
+/** pikaled2 animations report colorLen 32 regardless of how many colors they hold, so only a real count is updated. */
 function withColors(schema: LampColorSchema, colors: string[]): LampColorSchema {
+  const param = schema.lamp.param ?? {}
+  const prevCount = Array.isArray(param.color) ? param.color.length : 0
+  const isCount = typeof param.colorLen !== 'number' || param.colorLen === prevCount
   return {
     ...schema,
     lamp: {
       ...schema.lamp,
-      param: { ...schema.lamp.param, color: colors, colorLen: colors.length },
+      param: { ...param, color: colors, colorLen: isCount ? colors.length : param.colorLen },
     },
   }
 }

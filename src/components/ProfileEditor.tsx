@@ -221,7 +221,11 @@ export function ProfileEditor({ activeSlot, onSlotChange, onToast, onLibraryChan
               </button>
             ))}
           </div>
-          {draft.vapor === null ? <p className="hint left">Your Peak didn't report a vapor level for this slot.</p> : null}
+          {draft.vapor === null ? (
+            <p className="hint left">Your Peak didn't report a vapor level for this slot.</p>
+          ) : !VAPOR_LEVELS.some((l) => l.value === draft.vapor) ? (
+            <p className="hint left">Your Peak reports vapor setting {draft.vapor}, which isn't one of these yet.</p>
+          ) : null}
         </div>
       ) : null}
 

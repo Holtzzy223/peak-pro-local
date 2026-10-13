@@ -306,8 +306,8 @@ export function SettingsPanel({ onToast }: Props) {
           <div className="vapor-setup">
             <span className="setting-title">Vapor control (experimental)</span>
             <span className="setting-sub">
-              Only turn this on if the chat confirms which setting is vapor control. Writing the wrong one could
-              change a different setting on your Peak.
+              Uses your Peak's per-profile intensity setting. Turn it off if vapor levels don't behave the way the
+              Puffco app's did.
             </span>
             {answeringVapor.map((c) => (
               <label key={c.path} className="radio-row">

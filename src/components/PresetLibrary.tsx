@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { pushToSlot } from '../ble/actions'
-import { prettyAnimationName } from '../ble/animations'
+import { animationKey, prettyAnimationName } from '../ble/animations'
 import { colorsFromSchema, lampName, previewGradient } from '../ble/colors'
 import { usePuffco } from '../ble/PuffcoContext'
 import {
@@ -147,7 +147,7 @@ export function PresetLibrary({ presets, onChanged, onToast, onGoToDevice }: Pro
                 </div>
                 <span className="preset-meta">
                   {preset.tempF}°F · {preset.timeS}s · boost +{preset.boostTempF}°/+{preset.boostTimeS}s
-                  {lampName(preset.color) !== 'solid' ? ` · ${prettyAnimationName(lampName(preset.color))}` : ''}
+                  {lampName(preset.color) !== 'solid' ? ` · ${prettyAnimationName(animationKey(preset.color))}` : ''}
                 </span>
                 <div className="preset-actions">
                   <button

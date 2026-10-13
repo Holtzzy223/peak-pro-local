@@ -25,6 +25,8 @@ export type DeviceSnapshot = {
   lanternColor: unknown
   probes: ProbeResult[]
   vaporCandidates: ProbeResult[]
+  /** Raw per-slot float32 values for boost temp, boost time and vapor intensity. */
+  slotFloats: Record<string, Array<number | string>>
 }
 
 function toHex(bytes: Uint8Array): string {
@@ -81,6 +83,18 @@ export async function takeSnapshot(device: PuffcoDevice): Promise<DeviceSnapshot
     vaporCandidates.push({ ...result, path: template })
   }
 
+  const slotFloats: Record<string, Array<number | string>> = {}
+  for (const field of ['btmp', 'btim', 'intn']) {
+    slotFloats[field] = []
+    for (const slot of [0, 1, 2, 3]) {
+      try {
+        slotFloats[field].push((await device.read(`/u/app/hc/${slot}/${field}`, { type: 'float32' })) as number)
+      } catch (e) {
+        slotFloats[field].push(errorText(e))
+      }
+    }
+  }
+
   let info: unknown
   try {
     info = jsonSafe(await device.info.getAll())
@@ -96,5 +110,6 @@ export async function takeSnapshot(device: PuffcoDevice): Promise<DeviceSnapshot
     lanternColor,
     probes,
     vaporCandidates,
+    slotFloats,
   }
 }

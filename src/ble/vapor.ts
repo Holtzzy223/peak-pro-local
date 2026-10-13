@@ -1,12 +1,16 @@
 const STORAGE_KEY = 'peak-local:vapor-path'
+const OFF = 'off'
 
-/** Paths that might hold the per-profile vapor setting; %N is the slot index. None are confirmed. */
+/** The per-profile "intensity" field, a float32 like the other heat-profile fields; %N is the slot index. */
+export const DEFAULT_VAPOR_PATH = '/u/app/hc/%N/intn'
+
+/** Paths that might hold the per-profile vapor setting; only intn answers on Peak Pro firmware AW. */
 export const VAPOR_PATH_CANDIDATES = [
   '/u/app/hc/%N/vapr',
   '/u/app/hc/%N/vpr',
   '/u/app/hc/%N/vctl',
   '/u/app/hc/%N/vapc',
-  '/u/app/hc/%N/intn',
+  DEFAULT_VAPOR_PATH,
   '/u/app/hc/%N/vlvl',
   '/u/app/hc/%N/mode',
 ]
@@ -23,10 +27,11 @@ export function slotPath(template: string, slot: number): string {
 }
 
 export function getVaporPath(): string | null {
-  return localStorage.getItem(STORAGE_KEY)
+  const stored = localStorage.getItem(STORAGE_KEY)
+  if (stored === OFF) return null
+  return stored ?? DEFAULT_VAPOR_PATH
 }
 
 export function setVaporPath(template: string | null) {
-  if (template) localStorage.setItem(STORAGE_KEY, template)
-  else localStorage.removeItem(STORAGE_KEY)
+  localStorage.setItem(STORAGE_KEY, template ?? OFF)
 }

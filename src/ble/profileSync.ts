@@ -37,8 +37,8 @@ async function readBoost(device: PuffcoDevice, slot: ProfileSlot) {
 async function readVapor(device: PuffcoDevice, slot: ProfileSlot): Promise<number | null> {
   const template = getVaporPath()
   if (!template) return null
-  const bytes = await readOptional(() => device.readShort(slotPath(template, slot), 0, 1))
-  return bytes && bytes.length > 0 ? bytes[0] : null
+  const value = await readOptional(() => device.read(slotPath(template, slot), { type: 'float32' }))
+  return typeof value === 'number' && Number.isFinite(value) ? Math.round(value * 100) / 100 : null
 }
 
 export async function readSlot(device: PuffcoDevice, slot: ProfileSlot): Promise<ProfileDraft> {
@@ -69,7 +69,7 @@ export async function writeSlot(device: PuffcoDevice, slot: ProfileSlot, draft: 
   await device.write(`${base}/btim`, draft.boostTimeS, { type: 'float32' })
   const vaporTemplate = getVaporPath()
   if (vaporTemplate && draft.vapor !== null) {
-    await device.writeShort(slotPath(vaporTemplate, slot), 0, 0, Uint8Array.of(draft.vapor))
+    await device.write(slotPath(vaporTemplate, slot), draft.vapor, { type: 'float32' })
   }
   await device.writeCborFull(`${base}/colr`, encodeColorSchema(draft.color), 80)
 }
