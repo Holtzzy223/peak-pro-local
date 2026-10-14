@@ -21,6 +21,7 @@ import type { ProfileDraft, ProfileSlot } from '../types/preset'
 import { emptyProfile } from '../types/preset'
 import { learnAnimations, loadCatalog, type AnimationCatalog } from './animations'
 import { readAllSlots } from './profileSync'
+import { fromDeviceSlot, getHcsBase, learnHcsBase } from './slots'
 import { readTotalDabs } from './stats'
 
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected'
@@ -117,6 +118,7 @@ export function PuffcoProvider({ children }: { children: ReactNode }) {
   const [deviceStatus, setDeviceStatus] = useState<DeviceStatus>(OFFLINE_STATUS)
   const deviceRef = useRef<PuffcoDevice | null>(null)
   const lastPhase = useRef<SessionPhase>('off')
+  const hcsBase = useRef<0 | 1>(getHcsBase())
 
   const bleSupported = isSupported()
 
@@ -148,7 +150,12 @@ export function PuffcoProvider({ children }: { children: ReactNode }) {
       }
 
       try {
-        await loadSlots(dev)
+        const loaded = await readAllSlots(dev)
+        setSlots(loaded)
+        rememberAnimations(loaded)
+        hcsBase.current = await learnHcsBase(dev, loaded)
+        const live = fromDeviceSlot(await dev.profiles.current(), hcsBase.current)
+        setDeviceStatus((s) => ({ ...s, deviceSlot: live ?? s.deviceSlot }))
       } catch (e) {
         setLastError(messageOf(e, 'Failed to read profiles'))
       }
@@ -159,7 +166,7 @@ export function PuffcoProvider({ children }: { children: ReactNode }) {
         deviceName: dev.name?.trim() || s.deviceName,
       }))
     },
-    [loadSlots],
+    [rememberAnimations],
   )
 
   const connectDevice = useCallback(async () => {
@@ -241,8 +248,7 @@ export function PuffcoProvider({ children }: { children: ReactNode }) {
             charging: charge === 0 || charge === 1,
             phase: nextPhase,
             heaterTempF: typeof heaterC === 'number' ? Math.round(heaterC * 1.8 + 32) : null,
-            deviceSlot:
-              typeof slot === 'number' && slot >= 0 && slot <= 3 ? (slot as ProfileSlot) : prev.deviceSlot,
+            deviceSlot: fromDeviceSlot(slot, hcsBase.current) ?? prev.deviceSlot,
             chamberType: typeof snap.chamberType === 'number' ? snap.chamberType : prev.chamberType,
           }))
           if (wasHeating && (nextPhase === 'idle' || nextPhase === 'fade' || nextPhase === 'off')) {

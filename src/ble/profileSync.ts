@@ -37,8 +37,20 @@ async function readBoost(device: PuffcoDevice, slot: ProfileSlot) {
 async function readVapor(device: PuffcoDevice, slot: ProfileSlot): Promise<number | null> {
   const template = getVaporPath()
   if (!template) return null
-  const value = await readOptional(() => device.read(slotPath(template, slot), { type: 'float32' }))
+  const path = slotPath(template, slot)
+  const asByte = await readOptional(() => device.readShort(path, 0, 1))
+  if (asByte && asByte.length > 0 && asByte[0] <= 3) return asByte[0]
+  const value = await readOptional(() => device.read(path, { type: 'float32' }))
   return typeof value === 'number' && Number.isFinite(value) ? Math.round(value * 100) / 100 : null
+}
+
+/** Intensity looks writable as a single byte (0–3). A float32 write is what triggered Lorax errors. */
+async function writeVapor(device: PuffcoDevice, slot: ProfileSlot, vapor: number): Promise<void> {
+  const template = getVaporPath()
+  if (!template) return
+  const path = slotPath(template, slot)
+  const level = Math.max(0, Math.min(3, Math.round(vapor)))
+  await device.writeShort(path, 0, 0, Uint8Array.of(level))
 }
 
 export async function readSlot(device: PuffcoDevice, slot: ProfileSlot): Promise<ProfileDraft> {
@@ -67,9 +79,12 @@ export async function writeSlot(device: PuffcoDevice, slot: ProfileSlot, draft: 
   await device.write(`${base}/time`, draft.timeS, { type: 'float32' })
   await device.write(`${base}/btmp`, draft.boostTempF / 1.8, { type: 'float32' })
   await device.write(`${base}/btim`, draft.boostTimeS, { type: 'float32' })
-  const vaporTemplate = getVaporPath()
-  if (vaporTemplate && draft.vapor !== null) {
-    await device.write(slotPath(vaporTemplate, slot), draft.vapor, { type: 'float32' })
+  if (draft.vapor !== null) {
+    try {
+      await writeVapor(device, slot, draft.vapor)
+    } catch {
+      /* intensity is readable on this firmware but may be write-protected; don't fail the rest of the save */
+    }
   }
   await device.writeCborFull(`${base}/colr`, encodeColorSchema(draft.color), 80)
 }

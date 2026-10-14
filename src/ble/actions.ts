@@ -1,6 +1,7 @@
 import type { PuffcoDevice } from 'puffcoble-ts'
 import type { ProfileDraft, ProfileSlot } from '../types/preset'
 import { writeSlot } from './profileSync'
+import { setActiveSlot } from './slots'
 
 export async function pushToSlot(
   device: PuffcoDevice,
@@ -9,5 +10,5 @@ export async function pushToSlot(
   makeActive: boolean,
 ): Promise<void> {
   await writeSlot(device, slot, draft)
-  if (makeActive) await device.profiles.setCurrent(slot)
+  if (makeActive) await setActiveSlot(device, slot)
 }

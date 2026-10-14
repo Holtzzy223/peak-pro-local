@@ -3,6 +3,7 @@ import { CHAMBER_TYPE } from 'puffcoble-ts'
 import { pushToSlot } from '../ble/actions'
 import { colorsFromSchema } from '../ble/colors'
 import { usePuffco } from '../ble/PuffcoContext'
+import { setActiveSlot } from '../ble/slots'
 import { getVaporPath, VAPOR_LEVELS } from '../ble/vapor'
 import { savePreset } from '../storage/presets'
 import {
@@ -100,7 +101,7 @@ export function ProfileEditor({ activeSlot, onSlotChange, onToast, onLibraryChan
     if (!device) return
     haptic(10)
     try {
-      await device.profiles.setCurrent(activeSlot)
+      await setActiveSlot(device, activeSlot)
       setDeviceSlot(activeSlot)
       onToast(`Slot ${activeSlot + 1} is live on your Peak`)
     } catch (e) {
