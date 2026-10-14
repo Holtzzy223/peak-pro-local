@@ -23,6 +23,10 @@ async function readOptional<T>(fn: () => Promise<T>): Promise<T | null> {
   }
 }
 
+function errorText(e: unknown): string {
+  return e instanceof Error ? e.message : String(e)
+}
+
 /** Boost temperature is stored as a Celsius difference, so no 32-degree offset applies. */
 async function readBoost(device: PuffcoDevice, slot: ProfileSlot) {
   const base = `/u/app/hc/${slot}`
@@ -44,15 +48,6 @@ async function readVapor(device: PuffcoDevice, slot: ProfileSlot): Promise<numbe
   return typeof value === 'number' && Number.isFinite(value) ? Math.round(value * 100) / 100 : null
 }
 
-/** Intensity looks writable as a single byte (0–3). A float32 write is what triggered Lorax errors. */
-async function writeVapor(device: PuffcoDevice, slot: ProfileSlot, vapor: number): Promise<void> {
-  const template = getVaporPath()
-  if (!template) return
-  const path = slotPath(template, slot)
-  const level = Math.max(0, Math.min(3, Math.round(vapor)))
-  await device.writeShort(path, 0, 0, Uint8Array.of(level))
-}
-
 export async function readSlot(device: PuffcoDevice, slot: ProfileSlot): Promise<ProfileDraft> {
   const profile = await device.profiles.read(slot)
   const boost = await readBoost(device, slot)
@@ -72,19 +67,32 @@ export async function readAllSlots(device: PuffcoDevice): Promise<ProfileDraft[]
   return out
 }
 
-export async function writeSlot(device: PuffcoDevice, slot: ProfileSlot, draft: ProfileDraft): Promise<void> {
+export type SlotWriteResult = { failed: string[] }
+
+export async function writeSlot(device: PuffcoDevice, slot: ProfileSlot, draft: ProfileDraft): Promise<SlotWriteResult> {
   const base = `/u/app/hc/${slot}`
-  await device.writeShort(`${base}/name`, 0, 0, encodeProfileName(draft.name))
-  await device.write(`${base}/temp`, fToC(draft.tempF), { type: 'float32' })
-  await device.write(`${base}/time`, draft.timeS, { type: 'float32' })
-  await device.write(`${base}/btmp`, draft.boostTempF / 1.8, { type: 'float32' })
-  await device.write(`${base}/btim`, draft.boostTimeS, { type: 'float32' })
-  if (draft.vapor !== null) {
+  const failed: string[] = []
+
+  const attempt = async (label: string, fn: () => Promise<void>) => {
     try {
-      await writeVapor(device, slot, draft.vapor)
-    } catch {
-      /* intensity is readable on this firmware but may be write-protected; don't fail the rest of the save */
+      await fn()
+    } catch (e) {
+      failed.push(`${label}: ${errorText(e)}`)
     }
   }
-  await device.writeCborFull(`${base}/colr`, encodeColorSchema(draft.color), 80)
+
+  await attempt('temp', () => device.write(`${base}/temp`, fToC(draft.tempF), { type: 'float32' }))
+  await attempt('time', () => device.write(`${base}/time`, draft.timeS, { type: 'float32' }))
+  await attempt('name', async () => {
+    const raw = new TextEncoder().encode(draft.name.trim().slice(0, 16))
+    try {
+      await device.writeShort(`${base}/name`, 0, 0, raw)
+    } catch {
+      await device.writeShort(`${base}/name`, 0, 0, encodeProfileName(draft.name))
+    }
+  })
+  await attempt('boost temp', () => device.write(`${base}/btmp`, draft.boostTempF / 1.8, { type: 'float32' }))
+  await attempt('boost time', () => device.write(`${base}/btim`, draft.boostTimeS, { type: 'float32' }))
+  await attempt('color', () => device.writeCborFull(`${base}/colr`, encodeColorSchema(draft.color), 80))
+  return { failed }
 }

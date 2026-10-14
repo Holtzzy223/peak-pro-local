@@ -9,6 +9,13 @@ export async function pushToSlot(
   draft: ProfileDraft,
   makeActive: boolean,
 ): Promise<void> {
-  await writeSlot(device, slot, draft)
-  if (makeActive) await setActiveSlot(device, slot)
+  const { failed } = await writeSlot(device, slot, draft)
+  if (makeActive) {
+    try {
+      await setActiveSlot(device, slot)
+    } catch (e) {
+      failed.push(`active slot: ${e instanceof Error ? e.message : String(e)}`)
+    }
+  }
+  if (failed.length) throw new Error(failed.join(' · '))
 }

@@ -1,4 +1,4 @@
-import type { PuffcoDevice } from 'puffcoble-ts'
+import { MODE_COMMAND, type PuffcoDevice } from 'puffcoble-ts'
 import type { ProfileDraft, ProfileSlot } from '../types/preset'
 
 const STORAGE_KEY = 'peak-local:hcs-base'
@@ -68,7 +68,48 @@ export async function learnHcsBase(device: PuffcoDevice, slots: ProfileDraft[]):
   return base
 }
 
-/** Write the active slot without the temp-select begin/end dance, which can land one slot over. */
+async function writeHcs(device: PuffcoDevice, value: number) {
+  await device.writeShort('/p/app/hcs', 0, 0, Uint8Array.of(value))
+}
+
+async function mode(device: PuffcoDevice, cmd: number) {
+  await device.writeShort('/p/app/mc', 0, 0, Uint8Array.of(cmd))
+}
+
+async function readLive(device: PuffcoDevice): Promise<ProfileSlot | null> {
+  try {
+    return fromDeviceSlot(await device.profiles.current())
+  } catch {
+    return null
+  }
+}
+
+/** Switch the live slot, then read it back and correct if the Peak landed one over. */
 export async function setActiveSlot(device: PuffcoDevice, slot: ProfileSlot): Promise<void> {
-  await device.writeShort('/p/app/hcs', 0, 0, Uint8Array.of(toDeviceSlot(slot)))
+  const value = toDeviceSlot(slot)
+
+  const apply = async (endCmd: number) => {
+    await mode(device, MODE_COMMAND.TEMP_SELECTION_BEGIN)
+    await writeHcs(device, value)
+    await mode(device, endCmd)
+  }
+
+  try {
+    await writeHcs(device, value)
+  } catch {
+    await apply(MODE_COMMAND.TEMP_SELECTION_END)
+  }
+
+  let got = await readLive(device)
+  if (got === slot) return
+
+  await apply(MODE_COMMAND.IDLE)
+  got = await readLive(device)
+  if (got === slot) return
+
+  await apply(MODE_COMMAND.TEMP_SELECTION_END)
+  got = await readLive(device)
+  if (got !== slot) {
+    throw new Error(`Peak stayed on slot ${(got ?? 0) + 1} instead of ${slot + 1}`)
+  }
 }
