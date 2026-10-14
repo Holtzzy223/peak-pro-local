@@ -17,14 +17,11 @@ import {
   TIME_S_MIN,
   type ProfileDraft,
   type ProfileSlot,
-  type SavedPreset,
 } from '../types/preset'
 import { burst, haptic } from '../ui/fx'
 import { AnimationPicker } from './AnimationPicker'
 import { ColorPicker } from './ColorPicker'
 import { ConnectButton } from './ConnectButton'
-import { FavoritesStrip } from './FavoritesStrip'
-import { SessionHero } from './SessionHero'
 import { SlotCarousel } from './SlotCarousel'
 import { TempDial } from './TempDial'
 
@@ -33,7 +30,7 @@ type Props = {
   onSlotChange: (slot: ProfileSlot) => void
   onToast: (msg: string, kind?: 'ok' | 'error') => void
   onLibraryChanged: () => void
-  favorites: SavedPreset[]
+  onOpenLibrary: () => void
 }
 
 function NumberSlider(props: {
@@ -67,7 +64,7 @@ function NumberSlider(props: {
   )
 }
 
-export function ProfileEditor({ activeSlot, onSlotChange, onToast, onLibraryChanged, favorites }: Props) {
+export function ProfileEditor({ activeSlot, onSlotChange, onToast, onLibraryChanged, onOpenLibrary }: Props) {
   const { status, device, deviceStatus, slots, setSlots, refreshSlots, rememberAnimations, setDeviceSlot, busy } =
     usePuffco()
   const [saving, setSaving] = useState(false)
@@ -121,26 +118,13 @@ export function ProfileEditor({ activeSlot, onSlotChange, onToast, onLibraryChan
   return (
     <div className="screen">
       <header className="status-header">
-        <div>
-          <h1 className="app-title">Peak Local</h1>
-          {connected ? (
-            <p className="status-line">
-              {deviceStatus.batteryPercent !== null ? `${deviceStatus.batteryPercent}%` : ''}
-              {deviceStatus.charging ? ' · charging' : ''}
-            </p>
-          ) : null}
-        </div>
-        <span className={`conn-pill ${connected ? 'on' : 'off'}`}>
-          <span className="conn-dot" />
-          {connected ? 'Connected' : status === 'connecting' ? 'Connecting' : 'Offline'}
-        </span>
+        <h1 className="screen-title">Profiles</h1>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={onOpenLibrary}>
+          Library
+        </button>
       </header>
 
       {!connected ? <ConnectButton /> : null}
-
-      <SessionHero preview={draft} />
-
-      <FavoritesStrip favorites={favorites} onToast={onToast} />
 
       <SlotCarousel
         slots={slots}

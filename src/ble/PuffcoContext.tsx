@@ -21,6 +21,7 @@ import type { ProfileDraft, ProfileSlot } from '../types/preset'
 import { emptyProfile } from '../types/preset'
 import { learnAnimations, loadCatalog, type AnimationCatalog } from './animations'
 import { readAllSlots } from './profileSync'
+import { readTotalDabs } from './stats'
 
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected'
 
@@ -33,6 +34,8 @@ export type DeviceStatus = {
   heaterTempF: number | null
   deviceSlot: ProfileSlot | null
   chamberType: number | null
+  totalDabs: number | null
+  deviceName: string | null
 }
 
 type PuffcoContextValue = {
@@ -65,6 +68,8 @@ const OFFLINE_STATUS: DeviceStatus = {
   heaterTempF: null,
   deviceSlot: null,
   chamberType: null,
+  totalDabs: null,
+  deviceName: null,
 }
 
 const TELEMETRY_PATHS = [
@@ -111,6 +116,7 @@ export function PuffcoProvider({ children }: { children: ReactNode }) {
   const [lastError, setLastError] = useState<string | null>(null)
   const [deviceStatus, setDeviceStatus] = useState<DeviceStatus>(OFFLINE_STATUS)
   const deviceRef = useRef<PuffcoDevice | null>(null)
+  const lastPhase = useRef<SessionPhase>('off')
 
   const bleSupported = isSupported()
 
@@ -137,6 +143,7 @@ export function PuffcoProvider({ children }: { children: ReactNode }) {
         deviceRef.current = null
         setDevice(null)
         setStatus('disconnected')
+        lastPhase.current = 'off'
         setDeviceStatus(OFFLINE_STATUS)
       }
 
@@ -145,6 +152,12 @@ export function PuffcoProvider({ children }: { children: ReactNode }) {
       } catch (e) {
         setLastError(messageOf(e, 'Failed to read profiles'))
       }
+      const dabs = await readTotalDabs(dev).catch(() => null)
+      setDeviceStatus((s) => ({
+        ...s,
+        totalDabs: dabs,
+        deviceName: dev.name?.trim() || s.deviceName,
+      }))
     },
     [loadSlots],
   )
@@ -181,6 +194,7 @@ export function PuffcoProvider({ children }: { children: ReactNode }) {
     deviceRef.current = null
     setDevice(null)
     setStatus('disconnected')
+    lastPhase.current = 'off'
     setDeviceStatus(OFFLINE_STATUS)
   }, [])
 
@@ -218,15 +232,25 @@ export function PuffcoProvider({ children }: { children: ReactNode }) {
           const heaterC = snap.heaterTempC
           const slot = snap.activeProfile
           const charge = snap.batteryChargeState
+          const nextPhase = phaseFor(snap.opState)
+          const wasHeating = lastPhase.current === 'preheat' || lastPhase.current === 'active'
+          lastPhase.current = nextPhase
           setDeviceStatus((prev) => ({
+            ...prev,
             batteryPercent: toPercent(snap.batteryLevel) ?? prev.batteryPercent,
             charging: charge === 0 || charge === 1,
-            phase: phaseFor(snap.opState),
+            phase: nextPhase,
             heaterTempF: typeof heaterC === 'number' ? Math.round(heaterC * 1.8 + 32) : null,
             deviceSlot:
               typeof slot === 'number' && slot >= 0 && slot <= 3 ? (slot as ProfileSlot) : prev.deviceSlot,
             chamberType: typeof snap.chamberType === 'number' ? snap.chamberType : prev.chamberType,
           }))
+          if (wasHeating && (nextPhase === 'idle' || nextPhase === 'fade' || nextPhase === 'off')) {
+            void readTotalDabs(device).then((n) => {
+              if (n === null) return
+              setDeviceStatus((prev) => (prev.totalDabs === n ? prev : { ...prev, totalDabs: n }))
+            })
+          }
         }
       } catch {
         /* stream ends on disconnect */

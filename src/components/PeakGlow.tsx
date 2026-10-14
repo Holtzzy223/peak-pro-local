@@ -11,6 +11,7 @@ type Props = {
   centerLabel?: string
   subLabel?: string
   dimmed?: boolean
+  showRing?: boolean
 }
 
 const RING_R = 108
@@ -25,7 +26,7 @@ function heatColor(progress: number): string {
   return `hsl(${hue}, 95%, 60%)`
 }
 
-export function PeakGlow({ colors, animation, phase, progress, centerLabel, subLabel, dimmed }: Props) {
+export function PeakGlow({ colors, animation, phase, progress, centerLabel, subLabel, dimmed, showRing = true }: Props) {
   const c1 = colors[0] ?? '#4488ff'
   const c2 = colors[1] ?? c1
   const c3 = colors[2] ?? c2
@@ -70,8 +71,8 @@ export function PeakGlow({ colors, animation, phase, progress, centerLabel, subL
           </clipPath>
         </defs>
 
-        <circle cx="120" cy="120" r={RING_R} className="ring-track" />
-        {progress !== null ? (
+        {showRing ? <circle cx="120" cy="120" r={RING_R} className="ring-track" /> : null}
+        {showRing && progress !== null ? (
           <circle
             cx="120"
             cy="120"

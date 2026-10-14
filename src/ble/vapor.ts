@@ -16,11 +16,16 @@ export const VAPOR_PATH_CANDIDATES = [
 ]
 
 export const VAPOR_LEVELS = [
-  { value: 0, label: 'Standard' },
-  { value: 1, label: 'High' },
-  { value: 2, label: 'Max' },
+  { value: 0, label: 'Smooth' },
+  { value: 1, label: 'Regular' },
+  { value: 2, label: 'Strong' },
   { value: 3, label: 'XL', xlOnly: true },
 ]
+
+export function vaporLabel(value: number | null | undefined): string | null {
+  if (value === null || value === undefined) return null
+  return VAPOR_LEVELS.find((l) => l.value === value)?.label ?? null
+}
 
 export function slotPath(template: string, slot: number): string {
   return template.replace('%N', String(slot))

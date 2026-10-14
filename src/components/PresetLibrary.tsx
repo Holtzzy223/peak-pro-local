@@ -19,11 +19,12 @@ type Props = {
   onChanged: () => void
   onToast: (msg: string, kind?: 'ok' | 'error') => void
   onGoToDevice: () => void
+  onBack?: () => void
 }
 
 const SLOTS: ProfileSlot[] = [0, 1, 2, 3]
 
-export function PresetLibrary({ presets, onChanged, onToast, onGoToDevice }: Props) {
+export function PresetLibrary({ presets, onChanged, onToast, onGoToDevice, onBack }: Props) {
   const { device, status, slots, setSlots, setDeviceSlot } = usePuffco()
   const connected = status === 'connected' && device !== null
   const [applyTarget, setApplyTarget] = useState<SavedPreset | null>(null)
@@ -94,7 +95,12 @@ export function PresetLibrary({ presets, onChanged, onToast, onGoToDevice }: Pro
   return (
     <div className="screen">
       <header className="status-header">
-        <h1 className="app-title">Library ({presets.length})</h1>
+        {onBack ? (
+          <button type="button" className="btn btn-ghost btn-sm" onClick={onBack}>
+            Back
+          </button>
+        ) : null}
+        <h1 className="screen-title">Library ({presets.length})</h1>
         <button type="button" className="btn btn-ghost btn-sm" onClick={() => fileRef.current?.click()}>
           Import
         </button>
@@ -114,7 +120,7 @@ export function PresetLibrary({ presets, onChanged, onToast, onGoToDevice }: Pro
       {presets.length === 0 ? (
         <div className="empty-state">
           <div className="empty-orb" />
-          <p>Your stash is empty. Dial in a profile on the Device tab and tap Save to Library.</p>
+          <p>Your stash is empty. Dial in a profile and tap Save to Library.</p>
           <button type="button" className="btn btn-secondary squish" onClick={onGoToDevice}>
             Go dial one in
           </button>
